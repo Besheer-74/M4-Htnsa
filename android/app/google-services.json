@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "677259627885",
+    "project_id": "notes-f6fe1",
+    "storage_bucket": "notes-f6fe1.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:677259627885:android:c28a389916529cbe721e64",
+        "android_client_info": {
+          "package_name": "com.example.m4_htnsa.m4_htnsa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLyi-awOBUFb2JOt7m3f5HeoxH-2OV400"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
