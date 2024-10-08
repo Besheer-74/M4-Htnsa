@@ -482,6 +482,8 @@ class _ProfileState extends State<Profile> {
                 ElevatedButton(
                   onPressed: () async {
                     await FirebaseAuth.instance.signOut();
+                    sqlDb.deleteAllNotes();
+                    sqlDb.clearCache();
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class Note {
@@ -5,14 +6,14 @@ class Note {
   final String title;
   final String content;
   final String timestamp;
-  final Color color;
+  final Color? color;
 
   Note({
     required this.id,
     required this.title,
     required this.content,
     required this.timestamp,
-    required this.color,
+    this.color,
   });
 
   // Convert a Map from the database to a Note object
@@ -33,7 +34,7 @@ class Note {
       'title': title,
       'content': content,
       'timestamp': timestamp,
-      'color': color.value, // Convert Color to int
+      'color': color?.value, // Convert Color to int
     };
   }
 
@@ -52,4 +53,6 @@ class Note {
       timestamp: timestamp ?? this.timestamp,
     );
   }
+
+  static fromDocument(QueryDocumentSnapshot<Map<String, dynamic>> doc) {}
 }

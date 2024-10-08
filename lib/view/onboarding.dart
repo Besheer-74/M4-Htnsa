@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'Register.dart';
 
-class Onboadrding extends StatelessWidget {
-  const Onboadrding({super.key});
+class Onboarding extends StatelessWidget {
+  const Onboarding({super.key});
 
   @override
   Widget build(BuildContext context) {

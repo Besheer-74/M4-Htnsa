@@ -35,14 +35,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    theme.getTheme().then((value) {
-      setState(() {
-        isDark = value;
-      });
-    });
-    readData.readUser();
-    readNotes();
-    initializeNoteColors();
+    initialize();
+  }
+
+  Future<void> initialize() async {
+    isDark = await theme.getTheme();
+    await readData.readUser();
+    await readNotes();
+    await initializeNoteColors();
     screenPickerColor = Colors.blue; // Material blue.
     dialogPickerColor = Colors.black; // Material red.
     dialogSelectColor = Color(0xFFA239CA); // A purple color.
@@ -341,11 +341,11 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: 22,
             heading: Text(
               'Select color',
-              style: Theme.of(context).textTheme.headline6,
+              style: Theme.of(context).textTheme.headlineLarge,
             ),
             subheading: Text(
               'Select color shade',
-              style: Theme.of(context).textTheme.subtitle1,
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
           ),
         ),
@@ -367,6 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
 //============== Delete ==============
   void deleteMethod(BuildContext context, int item) async {
     int response = await sqlDb.delete("note", "id = ${filteredNotes[item].id}");
+    sqlDb.deleteNote(filteredNotes[item].id.toString());
     if (response > 0) {
       filteredNotes
           .removeWhere((element) => element.id == filteredNotes[item].id);
@@ -457,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> {
             motion: DrawerMotion(),
             children: [
               SlidableAction(
-                autoClose: false,
+                autoClose: true,
                 backgroundColor: Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 icon: Icons.color_lens,
@@ -465,7 +466,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: (context) => myColorPicker(context, noteId),
               ),
               SlidableAction(
-                autoClose: false,
+                autoClose: true,
                 foregroundColor: Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 backgroundColor: Colors.red,

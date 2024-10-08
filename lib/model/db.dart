@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -108,12 +109,26 @@ class SqlDb {
     return response;
   }
 
+  // Method to delete all notes from the local database
+  Future<void> deleteAllNotes() async {
+    Database? mydb = await db;
+    await mydb!.delete('note'); // Deletes all records from the 'note' table
+    print("All notes deleted from local database.");
+  }
+
+  // Clear cache
+  void clearCache() async {
+    await DefaultCacheManager().emptyCache();
+    print("Cache cleared.");
+  }
+
   //Delete All Database
   deleteMyDatabase() async {
     String databasepath = await getDatabasesPath();
     String path = join(databasepath, 'Notes.db');
     await deleteDatabase(path);
     print("delete datebase =============");
+    await DefaultCacheManager();
   }
 
   Future<void> updateProfileData(String field, String value) async {
@@ -127,6 +142,95 @@ class SqlDb {
           .update({field: value});
     } catch (e) {
       print('Error updating username in Firestore: $e');
+    }
+  }
+
+  Future<void> createNote(String noteId, String title, String content,
+      String timestamp, int color) async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      String? userId = user?.uid;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('notes') // Subcollection for storing notes
+          .doc(noteId) // Use your desired noteId here
+          .set({
+        // Use set to create or replace the document
+        'id': noteId, // Save the note ID as a field
+        'title': title,
+        'content': content,
+        'timestamp': timestamp,
+        'color': color,
+      });
+    } catch (e) {
+      print('Error creating a note in Firestore: $e');
+    }
+  }
+
+  Future<void> editNote(
+      String noteId, String title, String content, String timestamp) async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      String? userId = user?.uid;
+
+      if (userId != null) {
+        // Update the specific note in the user's 'notes' subcollection
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('notes')
+            .doc(noteId) // Specify the note document ID to update
+            .update({
+          'title': title,
+          'content': content,
+          'timestamp': timestamp,
+        });
+
+        print('Note updated successfully!');
+      }
+    } catch (e) {
+      print('Error updating note in Firestore: $e');
+    }
+  }
+
+  Future editcolor(String noteId, int color) async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      String? userId = user?.uid;
+
+      if (userId != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('notes')
+            .doc(noteId)
+            .update({
+          'color': color,
+        });
+        print('Note updated successfully!');
+      }
+    } catch (e) {
+      print('Error updating color note in Firestore: $e');
+    }
+  }
+
+  Future<void> deleteNote(String noteId) async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      String? userId = user?.uid;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('notes')
+          .doc(noteId)
+          .delete();
+
+      print('Note deleted successfully');
+    } catch (e) {
+      print('Error deleting note in Firestore: $e');
     }
   }
 }

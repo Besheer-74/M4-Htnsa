@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' as intl;
 
 import '../model/db.dart';
 import '../model/note.dart';
@@ -31,6 +32,14 @@ class _EditNoteState extends State<EditNote> {
     selectedColor = widget.selectedColor; // Set selectedColor from widget.
 
     super.initState();
+  }
+
+  // Function to detect and return the appropriate text direction
+  TextDirection detectTextDirection(String text) {
+    // Using a simple heuristic based on the first character
+    // This can be replaced with a more sophisticated algorithm if necessary
+    final bool isRTL = intl.Bidi.startsWithRtl(text);
+    return isRTL ? TextDirection.rtl : TextDirection.ltr;
   }
 
   @override
@@ -77,6 +86,7 @@ class _EditNoteState extends State<EditNote> {
                     color: Colors.blueGrey.shade50,
                     fontSize: 30,
                   ),
+                  textDirection: detectTextDirection(titleController.text),
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     hintText: "Title",
@@ -92,6 +102,7 @@ class _EditNoteState extends State<EditNote> {
                     color: Colors.blueGrey.shade50,
                     fontSize: 20,
                   ),
+                  textDirection: detectTextDirection(contentController.text),
                   maxLines: null,
                   decoration: InputDecoration(
                     border: InputBorder.none,
@@ -110,6 +121,13 @@ class _EditNoteState extends State<EditNote> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           String timestamp = DateTime.now().toIso8601String();
+          await sqlDb.editNote(
+            widget.note.id.toString(),
+            titleController.text,
+            contentController.text,
+            timestamp,
+          );
+
           int response = await sqlDb.update(
               "note",
               {

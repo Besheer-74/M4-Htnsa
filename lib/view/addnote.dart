@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'dart:math';
 
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' as intl;
 import '../model/db.dart';
 import './home.dart';
 
@@ -14,6 +16,26 @@ class _AddNoteState extends State<AddNote> {
   SqlDb sqlDb = SqlDb();
   TextEditingController titleController = TextEditingController();
   TextEditingController contentController = TextEditingController();
+
+  @override
+  void initState() {
+    detectTextDirection;
+    super.initState();
+  }
+
+  int generateUniqueId() {
+    int timestamp = DateTime.now().millisecondsSinceEpoch;
+    int randomNum = Random().nextInt(10000);
+    return timestamp + randomNum;
+  }
+
+  // Function to detect and return the appropriate text direction
+  TextDirection detectTextDirection(String text) {
+    // Using a simple heuristic based on the first character
+    // This can be replaced with a more sophisticated algorithm if necessary
+    final bool isRTL = intl.Bidi.startsWithRtl(text);
+    return isRTL ? TextDirection.rtl : TextDirection.ltr;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +81,10 @@ class _AddNoteState extends State<AddNote> {
                     color: Colors.white.withOpacity(.8),
                     fontSize: 30,
                   ),
+                  onChanged: (text) {
+                    setState(() {}); // Trigger rebuild to update text direction
+                  },
+                  textDirection: detectTextDirection(titleController.text),
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     hintText: "Title",
@@ -74,6 +100,10 @@ class _AddNoteState extends State<AddNote> {
                     color: Colors.white.withOpacity(.8),
                     fontSize: 20,
                   ),
+                  onChanged: (text) {
+                    setState(() {}); // Trigger rebuild to update text direction
+                  },
+                  textDirection: detectTextDirection(contentController.text),
                   maxLines: null,
                   decoration: InputDecoration(
                     border: InputBorder.none,
@@ -107,14 +137,22 @@ class _AddNoteState extends State<AddNote> {
               ),
             ));
           } else {
+            int noteId = generateUniqueId();
             String timestamp = DateTime.now().toIso8601String();
             int response = await sqlDb.insert("note", {
+              "id": noteId,
               "title": titleController.text,
               "content": contentController.text,
               "timestamp": timestamp,
               "color": Colors.black.value,
             });
-
+            sqlDb.createNote(
+              noteId.toString(),
+              titleController.text,
+              contentController.text,
+              timestamp,
+              Colors.black.value,
+            );
             if (response > 0) {
               Navigator.pushAndRemoveUntil(
                 context,

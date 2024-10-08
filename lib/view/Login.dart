@@ -3,6 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:m4_htnsa/model/firestoreData.dart';
 
 import '../model/db.dart';
 import 'Register.dart';
@@ -39,13 +40,15 @@ class _LoginScreenState extends State<LoginScreen> {
       String username = userData.get('username');
       String email = userData.get('email');
       String avatar = userData.get('avatar');
-
       sqlDb.insert("users", {
         "username": username,
         "email": email,
         "avatar": avatar,
         "theme": true,
       });
+
+      GetNote getNote = GetNote();
+      await getNote.fetchNotesAndSave();
 
       Navigator.pushReplacement(
         context,
@@ -243,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             login();
                           },
                           child: Text(
-                            "Login💋",
+                            "Login💀",
                             style: TextStyle(
                               color: Colors.black,
                               fontSize: 20,
