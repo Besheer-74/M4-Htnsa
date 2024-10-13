@@ -21,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   TextEditingController passwordController = TextEditingController();
   TextEditingController usernameController = TextEditingController();
   SqlDb sqlDb = SqlDb();
+
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
@@ -33,28 +34,84 @@ class _RegisterScreenState extends State<RegisterScreen> {
           email: emailController.text,
           password: passwordController.text,
         );
-        // Get the user ID after successful registration
-        String userId = credential.user!.uid;
 
-        await sqlDb.insert("users", {
-          "username": usernameController.text,
-          "email": emailController.text,
-          "avatar": "assets/avatar/boy (8).png",
-        });
+        // Send email verification
+        User? user = FirebaseAuth.instance.currentUser;
+        await user!.sendEmailVerification();
 
-        // Save the username along with the user ID in Firebase
-        FirebaseFirestore.instance.collection('users').doc(userId).set({
-          'username': usernameController.text,
-          'email': emailController.text,
-          'avatar': "assets/avatar/boy (8).png",
-        });
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (BuildContext context) => HomeScreen(),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'A verification email has been sent. Please verify your email to continue.',
+              style: TextStyle(
+                fontFamily: "MetalMania",
+                fontWeight: FontWeight.w400,
+                fontSize: 16,
+              ),
+            ),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.green.withOpacity(0.9),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
           ),
         );
+
+        // Check email verification status in a loop with a delay
+        bool isEmailVerified = false;
+        while (!isEmailVerified) {
+          await FirebaseAuth.instance.currentUser!.reload();
+          isEmailVerified = FirebaseAuth.instance.currentUser!.emailVerified;
+
+          if (!isEmailVerified) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Still waiting for email verification. Please check your email and verify to proceed.',
+                  style: TextStyle(
+                    fontFamily: "MetalMania",
+                    fontWeight: FontWeight.w400,
+                    fontSize: 16,
+                  ),
+                ),
+                duration: Duration(days: 365),
+                backgroundColor: Colors.orange.shade600.withOpacity(0.9),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            );
+          }
+          await Future.delayed(Duration(
+            seconds: 5,
+          ));
+        }
+
+        // Once email is verified, save user data and navigate to home screen
+        if (isEmailVerified) {
+          String userId = credential.user!.uid;
+
+          // Save user data in SQLite or Firestore
+          await sqlDb.insert("users", {
+            "username": usernameController.text,
+            "email": emailController.text,
+            "avatar": "assets/avatar/boy (8).png",
+          });
+
+          FirebaseFirestore.instance.collection('users').doc(userId).set({
+            'username': usernameController.text,
+            'email': emailController.text,
+            'avatar': "assets/avatar/boy (8).png",
+          });
+          ScaffoldMessenger.of(context).clearSnackBars();
+          // Navigate to home screen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (BuildContext context) => HomeScreen(),
+            ),
+          );
+        }
       } on FirebaseAuthException catch (e) {
         if (e.code == 'weak-password') {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -96,7 +153,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Write your email correct',
+                'Please enter a valid email address.',
                 style: TextStyle(
                   fontFamily: "MetalMania",
                   fontWeight: FontWeight.w400,

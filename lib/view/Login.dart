@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   SqlDb sqlDb = SqlDb();
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   void login() async {
     try {
@@ -28,34 +29,58 @@ class _LoginScreenState extends State<LoginScreen> {
         email: emailController.text,
         password: passwordController.text,
       );
-      // Get the user ID after successful login
-      String userId = credential.user!.uid;
-      // String? userName = credential.user!.displayName;
-      // print("================ $userName ===================");
+      User? user = FirebaseAuth.instance.currentUser;
 
-      var userData = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-      String username = userData.get('username');
-      String email = userData.get('email');
-      String avatar = userData.get('avatar');
-      sqlDb.insert("users", {
-        "username": username,
-        "email": email,
-        "avatar": avatar,
-        "theme": true,
-      });
+      if (user != null && !user.emailVerified) {
+        await user
+            .sendEmailVerification(); // Resend the verification email if needed
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Please verify your email to log in. A verification email has been sent.',
+              style: TextStyle(
+                fontFamily: "MetalMania",
+                fontWeight: FontWeight.w400,
+                fontSize: 16,
+              ),
+            ),
+            duration: Duration(seconds: 5),
+            backgroundColor: Colors.orange.shade600.withOpacity(0.9),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        );
+        await FirebaseAuth.instance
+            .signOut(); // Sign out if email is not verified
+      } else {
+        // Get the user ID after successful login
+        String userId = credential.user!.uid;
 
-      GetNote getNote = GetNote();
-      await getNote.fetchNotesAndSave();
+        var userData = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+        String username = userData.get('username');
+        String email = userData.get('email');
+        String avatar = userData.get('avatar');
+        sqlDb.insert("users", {
+          "username": username,
+          "email": email,
+          "avatar": avatar,
+          "theme": true,
+        });
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (BuildContext context) => HomeScreen(username: username),
-        ),
-      );
+        GetNote getNote = GetNote();
+        await getNote.fetchNotesAndSave();
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (BuildContext context) => HomeScreen(username: username),
+          ),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       print("===============${e.code}============================");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,44 +100,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       );
-
-      //  else if (e.code == 'wrong-password') {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(
-      //       content: Text(
-      //         'Wrong password provided for that user! Please try again.',
-      //         style: TextStyle(
-      //           fontFamily: "MetalMania",
-      //           fontWeight: FontWeight.w400,
-      //           fontSize: 16,
-      //         ),
-      //       ),
-      //       duration: Duration(seconds: 3),
-      //       backgroundColor: Colors.orange.shade600.withOpacity(0.9),
-      //       shape: RoundedRectangleBorder(
-      //         borderRadius: BorderRadius.circular(20),
-      //       ),
-      //     ),
-      //   );
-      // } else if (e.code == 'invalid-email') {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(
-      //       content: Text(
-      //         'Write your email correct',
-      //         style: TextStyle(
-      //           fontFamily: "MetalMania",
-      //           fontWeight: FontWeight.w400,
-      //           fontSize: 16,
-      //         ),
-      //       ),
-      //       duration: Duration(seconds: 3),
-      //       backgroundColor: Colors.orange.shade600.withOpacity(0.9),
-      //       shape: RoundedRectangleBorder(
-      //         borderRadius: BorderRadius.circular(20),
-      //       ),
-      //     ),
-      //   );
-      // }
     } catch (e) {
       print(e);
     }
@@ -256,7 +243,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     Padding(
-                      padding: EdgeInsets.only(top: deviceHeight * 0.03),
+                      padding: EdgeInsets.only(top: deviceHeight * 0.02),
+                      child: TextButton(
+                        onPressed: () {
+                          resetPassword();
+                        },
+                        child: Text(
+                          textAlign: TextAlign.center,
+                          "Reset Your Password",
+                          style: TextStyle(
+                            fontSize: 20,
+                            color: Colors.orange.shade600,
+                            wordSpacing: 1,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(top: deviceHeight * 0.01),
                       child: TextButton(
                         onPressed: () {
                           Navigator.pushAndRemoveUntil(
@@ -288,5 +293,63 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  void resetPassword() async {
+    try {
+      await _auth.sendPasswordResetEmail(email: emailController.text);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Password reset email sent! Check your inbox.',
+            style: TextStyle(
+              fontFamily: "MetalMania",
+              fontWeight: FontWeight.w400,
+              fontSize: 16,
+            ),
+          ),
+          backgroundColor: Colors.orange.shade600.withOpacity(0.9),
+          duration: Duration(seconds: 5),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = '';
+      if (e.code == 'user-not-found') {
+        message = 'No user found for that email.';
+      } else {
+        message = 'An error occurred. Please try again.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: TextStyle(
+              fontFamily: "MetalMania",
+              fontWeight: FontWeight.w400,
+              fontSize: 16,
+            ),
+          ),
+          backgroundColor: Colors.orange.shade600.withOpacity(0.9),
+          duration: Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      print(e.toString());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'An error occurred. Please try again.',
+            style: TextStyle(
+              fontFamily: "MetalMania",
+              fontWeight: FontWeight.w400,
+              fontSize: 16,
+            ),
+          ),
+          backgroundColor: Colors.orange.shade600.withOpacity(0.9),
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
   }
 }

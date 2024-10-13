@@ -121,7 +121,7 @@ class _EditNoteState extends State<EditNote> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           String timestamp = DateTime.now().toIso8601String();
-          await sqlDb.editNote(
+          sqlDb.editNote(
             widget.note.id.toString(),
             titleController.text,
             contentController.text,

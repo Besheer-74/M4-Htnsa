@@ -20,9 +20,7 @@ class GetNote {
 
         QuerySnapshot notesSnapshot = await notesRef.get();
 
-        // Loop through the fetched notes and save each one locally
         for (var noteDoc in notesSnapshot.docs) {
-          // Extract note data from Firestore document
           Map<String, dynamic> noteData =
               noteDoc.data() as Map<String, dynamic>;
           int noteId = int.parse(noteData['id']);

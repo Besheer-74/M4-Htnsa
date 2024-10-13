@@ -6,6 +6,8 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
 
 import '../fuc/colornote.dart';
+import '../model/ListType.dart';
+import '../model/sortType.dart';
 import '../model/theme.dart';
 import './profile.dart';
 import '../fuc/sort_option.dart';
@@ -31,7 +33,9 @@ class _HomeScreenState extends State<HomeScreen> {
   ReadData readData = ReadData();
   bool? isDark;
   TheTheme theme = TheTheme();
-
+  Thetypeoflist type = Thetypeoflist();
+  SortType sort = SortType();
+  bool? isList;
   @override
   void initState() {
     super.initState();
@@ -40,8 +44,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> initialize() async {
     isDark = await theme.getTheme();
+    isList = await type.getType();
+
     await readData.readUser();
     await readNotes();
+    await sortNote();
     await initializeNoteColors();
     screenPickerColor = Colors.blue; // Material blue.
     dialogPickerColor = Colors.black; // Material red.
@@ -54,6 +61,13 @@ class _HomeScreenState extends State<HomeScreen> {
     notes = response.map((noteMap) => Note.fromMap(noteMap)).toList();
     setState(() {
       filteredNotes = notes;
+    });
+  }
+
+  Future<void> sortNote() async {
+    SortOption savedSortOption = await sort.getSortOption();
+    setState(() {
+      filteredNotes = sortNotes(filteredNotes, savedSortOption);
     });
   }
 
@@ -137,6 +151,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   IconButton(
                     onPressed: () {
+                      setState(() {
+                        isList = !isList!;
+                        type.settype(isList!);
+                      });
+                    },
+                    icon: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade600.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: isList!
+                          ? const Icon(
+                              Icons.view_list_rounded,
+                              color: Colors.white,
+                            )
+                          : const Icon(
+                              Icons.grid_view_rounded,
+                              color: Colors.white,
+                            ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () {
                       modelSortSheet(sortType);
                     },
                     icon: Container(
@@ -194,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ],
                         )
-                      : buildNoteList()),
+                      : buildNote()),
             ],
           ),
         ),
@@ -220,10 +259,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 //============== Sort Function ==============
-  sortType(BuildContext context, SortOption sortOption) {
+  sortType(BuildContext context, SortOption sortOption) async {
     setState(() {
       filteredNotes = sortNotes(filteredNotes, sortOption);
     });
+    await sort.setSortOption(sortOption);
     Navigator.pop(context);
   }
 
@@ -328,12 +368,19 @@ class _HomeScreenState extends State<HomeScreen> {
             // Update the screenPickerColor using the callback.
             onColorChanged: (Color color) => setState(() async {
               screenPickerColor = color;
+
+              // First, update the color in SQLite
               await sqlDb.update(
                   "note", {"color": color.value}, "id = $noteId");
+
+              // Then, update the color in Firebase
+              sqlDb.editcolor(noteId.toString(), color.value);
+
+              // Finally, update the UI and close the color picker
               setState(() {
                 colorNote.setNoteColor(noteId, color);
-                // Pass the updated color back to EditNote screen.
-                Navigator.pop(context, color);
+                Navigator.pop(context,
+                    color); // Pass the updated color back to EditNote screen.
               });
             }),
             width: 50,
@@ -440,7 +487,11 @@ class _HomeScreenState extends State<HomeScreen> {
         });
   }
 
-//============== Note Build ==============
+// ============== Note Build ==============
+  Widget buildNote() {
+    return isList! ? buildNoteList() : buildNoteGrid();
+  }
+
   Widget buildNoteList() {
     return ListView.builder(
       itemCount: filteredNotes.length,
@@ -520,6 +571,113 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontWeight: FontWeight.normal,
                             fontSize: 16,
                             height: 1.5,
+                          ),
+                        ),
+                      ]),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    "Edited: ${formatter.format(DateTime.parse(modifiedTime))}",
+                    style: TextStyle(
+                      color: Colors.blueGrey.shade50,
+                      fontWeight: FontWeight.normal,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget buildNoteGrid() {
+    return GridView.builder(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 0,
+        mainAxisExtent: 150,
+      ),
+      itemCount: filteredNotes.length,
+      itemBuilder: (context, item) {
+        final note = filteredNotes[item];
+        final noteId = note.id;
+        String title = note.title;
+        String content = note.content;
+        String modifiedTime = note.timestamp;
+        DateFormat formatter = DateFormat('dd MMM yyyy, hh:mm a');
+        final selectedColor = colorNote.noteColors[noteId];
+        return Slidable(
+          endActionPane: ActionPane(
+            extentRatio: 0.9,
+            motion: DrawerMotion(),
+            children: [
+              SlidableAction(
+                autoClose: true,
+                backgroundColor: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                icon: Icons.color_lens,
+                // label: "Color",
+                onPressed: (context) => myColorPicker(context, noteId),
+              ),
+              SlidableAction(
+                autoClose: true,
+                foregroundColor: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                backgroundColor: Colors.red,
+                icon: Icons.delete,
+                // label: "Delete",
+                onPressed: (context) => deleteDialog(context, item),
+              ),
+            ],
+          ),
+          child: Card(
+            elevation: 10,
+            color: selectedColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: ListTile(
+                onTap: () {
+                  Note updatedNote = filteredNotes[item].copyWith(
+                    title: notes[item].title,
+                    content: notes[item].content,
+                    id: notes[item].id,
+                    color: notes[item].color,
+                  );
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (BuildContext context) => EditNote(
+                        note: updatedNote,
+                        selectedColor: selectedColor!,
+                      ),
+                    ),
+                  );
+                },
+                title: RichText(
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                      text: "$title \n",
+                      style: TextStyle(
+                        color: Colors.blueGrey.shade50,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        height: 1,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: "$content",
+                          style: TextStyle(
+                            color: Colors.blueGrey.shade50,
+                            fontWeight: FontWeight.normal,
+                            fontSize: 16,
+                            height: 1,
                           ),
                         ),
                       ]),
